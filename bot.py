@@ -105,6 +105,26 @@ def get_entities(site, page):
     return raw_api_call(args)
 
 
+def set_reference(entity, statement, snaks):
+
+    response = pageinfo(entity)
+    itm = response['query']['pages'].items()[0][1]
+    baserevid = itm['lastrevid']
+    edittoken = itm['edittoken']
+
+    args = {
+        'action': 'wbsetreference',
+        'bot': 1,
+        'statement': statement,
+        'snaks': json.dumps(snaks),
+        'token': edittoken,
+        'baserevid': baserevid
+    }
+    logging.info("  Sleeping 2 secs")
+    time.sleep(2)
+    return raw_api_call(args)
+
+
 def get_claims(entity, property):
     args = {
         'action': 'wbgetclaims',
@@ -134,7 +154,7 @@ def create_claim(entity, property, value):
     logger.info("  Sleeping 4 secs")
     time.sleep(4)
     response = raw_api_call(args)
-    return response
+    return response['claim']['id']
 
 
 def create_claim_if_not_exists(entity, property, value):
@@ -145,6 +165,8 @@ def create_claim_if_not_exists(entity, property, value):
         curval = response['claims'][property][0]['mainsnak']['datavalue']['value']
         if value == curval:
             logger.info('  %s: Claim already exists with the same value', entity)
+            return None  # TODO
+            #return response['claims']['P1015'][0]
         else:
             logger.warn('  %s: Claim already exists. Existing value: %s, new value: %s', entity, curval, value)
         return None
@@ -163,7 +185,7 @@ def process_item(page, autid):
 
     logger.info('Page: %s (%s)', page, q_number)
 
-    response = requests.get('http://sru.bibsys.no/search/authority', params={
+    r2 = requests.get('http://sru.bibsys.no/search/authority', params={
         'version': '1.2',
         'operation': 'searchRetrieve',
         'startRecord': '1',
@@ -173,19 +195,55 @@ def process_item(page, autid):
     })
 
     logger.info('Adding: %s', autid)
-    create_claim_if_not_exists(q_number, 'P1015', autid)
+    response = create_claim_if_not_exists(q_number, 'P1015', autid)
+    if response:
+        print response
+        statement = response
+
+        snaks = {'P1015': [
+            {
+                'snaktype': 'value',
+                'property': 'P1015',
+                'datavalue': {
+                    'type': 'wikibase-entityid',
+                    'value': {
+                        'entity-type': 'item',
+                        'numeric-id': 16889143    # BIBSYS autoritetsregister
+                    }
+                }
+            }]}
+        set_reference(q_number, statement, snaks)
 
     gender = ''
-    dom = etree.fromstring(response.text.encode('utf8'))
+    dom = etree.fromstring(r2.text.encode('utf8'))
     gender = dom.xpath('//marc:record/marc:datafield[@tag="375"]/marc:subfield[@code="a"]/text()', namespaces=dom.nsmap)
     if len(gender) == 1:
         gender = gender[0]
+        response = None
         if gender == 'male':
             logger.info('Setting gender to: male')
-            create_claim_if_not_exists(q_number, 'P21', {'entity-type': 'item', 'numeric-id': 6581097})
+            response = create_claim_if_not_exists(q_number, 'P21', {'entity-type': 'item', 'numeric-id': 6581097})
         elif gender == 'female':
             logger.info('Setting gender to: female')
-            create_claim_if_not_exists(q_number, 'P21', {'entity-type': 'item', 'numeric-id': 6581072})
+            response = create_claim_if_not_exists(q_number, 'P21', {'entity-type': 'item', 'numeric-id': 6581072})
+
+        if response:
+
+            statement = response['claim']['id']
+
+            snaks = {'P1015': [
+                {
+                    'snaktype': 'value',
+                    'property': 'P1015',
+                    'datavalue': {
+                        'type': 'wikibase-entityid',
+                        'value': {
+                            'entity-type': 'item',
+                            'numeric-id': 16889143    # BIBSYS autoritetsregister
+                        }
+                    }
+                }]}
+            set_reference(q_number, statement, snaks)
 
 
 if login(config['user'], config['pass']):
