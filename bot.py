@@ -11,7 +11,7 @@ import simplejson as json
 from lxml import etree
 
 config = json.load(open('config.json', 'r'))
-bs = unicodecsv.reader(codecs.open('2014-04-04-Bibsysmatch.csv', 'r'), delimiter=';')
+bs = unicodecsv.reader(codecs.open('data/2014-04-04-Bibsysmatch.csv', 'r'), delimiter=';')
 
 logger = logging.getLogger('local')
 logger.setLevel(logging.INFO)
