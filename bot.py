@@ -19,6 +19,11 @@ handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter('%(asctime)s  %(message)s'))
 logger.addHandler(handler)
 
+
+file_handler = logging.FileHandler('bot.log')
+file_handler.setLevel(logging.INFO)
+logger.addHandler(file_handler)
+
 # Respect https://www.mediawiki.org/wiki/Maxlag
 lagpattern = re.compile(r'Waiting for [^ ]*: (?P<lag>[0-9.]+) seconds? lagged')
 
