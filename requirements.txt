@@ -1,0 +1,4 @@
+requests
+unicodecsv
+codecs
+lxml
