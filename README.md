@@ -5,4 +5,4 @@ Install:
     pip install -r requirements.txt
     cp config.dist.json config.json
 
-Edit `config.json` and run `python bot.py`
+Edit `config.json` and run `./submit.sh`
