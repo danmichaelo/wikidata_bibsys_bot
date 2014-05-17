@@ -14,14 +14,17 @@ config = json.load(open('config.json', 'r'))
 bs = unicodecsv.reader(codecs.open('data/2014-04-04-Bibsysmatch.csv', 'r'), delimiter=';')
 
 logger = logging.getLogger('local')
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+
 handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter('%(asctime)s  %(message)s'))
+handler.setLevel(logging.INFO)
+handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-
 file_handler = logging.FileHandler('bot.log')
-file_handler.setLevel(logging.INFO)
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 # Respect https://www.mediawiki.org/wiki/Maxlag
@@ -107,7 +110,7 @@ def get_entities(site, page):
 
 def set_reference(entity, claim, reference):
 
-    #print json.dumps(reference, indent='\t')
+    logger.debug(json.dumps(claim, indent='\t'))
 
     statement = claim['id']
     if 'references' in claim:
@@ -166,7 +169,7 @@ def create_claim(entity, property, value):
     logger.info('  %s: Adding claim %s = %s', entity, property, value)
     time.sleep(2)
     response = raw_api_call(args)
-    return response['claim']['id']
+    return response['claim']
 
 
 def create_claim_if_not_exists(entity, property, value):
@@ -176,10 +179,10 @@ def create_claim_if_not_exists(entity, property, value):
     if property in response['claims']:
         curval = response['claims'][property][0]['mainsnak']['datavalue']['value']
         if value == curval:
-            logger.info('  Claim %s already exists with the same value %s', entity, property, value)
+            logger.info('  Claim %s already exists with the same value %s', property, value)
             return response['claims'][property][0]
         else:
-            logger.warn('  Claim %s already exists. Existing value: %s, new value: %s', entity, property, curval, value)
+            logger.warn('  Claim %s already exists. Existing value: %s, new value: %s', property, curval, value)
         return None
 
     return create_claim(entity, property, value)
