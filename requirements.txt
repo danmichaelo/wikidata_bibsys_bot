@@ -2,3 +2,5 @@ requests
 unicodecsv
 lxml
 simplejson
+mwclient
+pyyaml

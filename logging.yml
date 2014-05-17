@@ -1,0 +1,26 @@
+version: 1
+formatters:
+  defaultFormatter:
+    format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  simpleFormater:
+    format: '%(asctime)s - %(levelname)s: %(message)s'
+handlers:
+  consoleHandler:
+    class: logging.StreamHandler
+    level: INFO
+    formatter: simpleFormater
+    stream: ext://sys.stdout
+  fileHandler:
+    class: logging.FileHandler
+    level: DEBUG
+    formatter: simpleFormater
+    filename: bot.log
+loggers:
+  bot:
+    level: DEBUG
+    handlers: [consoleHandler]
+    propagate: no
+  wikidataeditor:
+    level: DEBUG
+    handlers: [consoleHandler]
+    propagate: no
