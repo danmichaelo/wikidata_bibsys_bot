@@ -9,6 +9,7 @@ import unicodecsv
 import requests
 import simplejson as json
 from lxml import etree
+import hashlib
 
 config = json.load(open('config.json', 'r'))
 bs = unicodecsv.reader(codecs.open('data/2014-04-04-Bibsysmatch.csv', 'r'), delimiter=';')
@@ -105,7 +106,19 @@ def get_entities(site, page):
     return raw_api_call(args)
 
 
-def set_reference(entity, statement, snaks):
+def set_reference(entity, claim, reference):
+
+    #print json.dumps(reference, indent='\t')
+
+    statement = claim['id']
+    if 'references' in claim:
+        for ref in claim['references']:
+            if ref['snaks'] == reference:
+                logger.info('  Reference already exists')
+                return
+
+    logger.info('  Adding reference')
+    time.sleep(2)
 
     response = pageinfo(entity)
     itm = response['query']['pages'].items()[0][1]
@@ -116,12 +129,11 @@ def set_reference(entity, statement, snaks):
         'action': 'wbsetreference',
         'bot': 1,
         'statement': statement,
-        'snaks': json.dumps(snaks),
+        'snaks': json.dumps(reference),
         'token': edittoken,
         'baserevid': baserevid
     }
-    logging.info("  Sleeping 2 secs")
-    time.sleep(2)
+    #logger.info("  Sleeping 2 secs")
     return raw_api_call(args)
 
 
@@ -151,8 +163,9 @@ def create_claim(entity, property, value):
         'token': edittoken,
         'baserevid': baserevid
     }
-    logger.info("  Sleeping 4 secs")
-    time.sleep(4)
+
+    logger.info('  %s: Adding claim %s = %s', entity, property, value)
+    time.sleep(2)
     response = raw_api_call(args)
     return response['claim']['id']
 
@@ -164,14 +177,11 @@ def create_claim_if_not_exists(entity, property, value):
     if property in response['claims']:
         curval = response['claims'][property][0]['mainsnak']['datavalue']['value']
         if value == curval:
-            logger.info('  %s: Claim already exists with the same value', entity)
-            return None  # TODO
-            #return response['claims']['P1015'][0]
+            logger.info('  Claim %s already exists with the same value %s', entity, property, value)
+            return response['claims'][property][0]
         else:
-            logger.warn('  %s: Claim already exists. Existing value: %s, new value: %s', entity, curval, value)
+            logger.warn('  Claim %s already exists. Existing value: %s, new value: %s', entity, property, curval, value)
         return None
-
-    logger.info('  %s: Claim does not exist', entity)
 
     return create_claim(entity, property, value)
 
@@ -194,16 +204,12 @@ def process_item(page, autid):
         'recordSchema': 'marcxchange'
     })
 
-    logger.info('Adding: %s', autid)
-    response = create_claim_if_not_exists(q_number, 'P1015', autid)
-    if response:
-        print response
-        statement = response
-
-        snaks = {'P1015': [
+    reference = {
+        'P248': [  # nevnt i
             {
                 'snaktype': 'value',
-                'property': 'P1015',
+                'property': 'P248',  # nevnt i
+                'datatype': 'wikibase-item',
                 'datavalue': {
                     'type': 'wikibase-entityid',
                     'value': {
@@ -211,39 +217,43 @@ def process_item(page, autid):
                         'numeric-id': 16889143    # BIBSYS autoritetsregister
                     }
                 }
-            }]}
-        set_reference(q_number, statement, snaks)
+            }],
+        'P813': [  # aksessdato
+            {
+                'snaktype': 'value',
+                'property': 'P813',  # aksessdato
+                'datatype': 'time',
+                'datavalue': {
+                    'type': 'time',
+                    'value': {
+                        'time': '+00000002014-04-04T00:00:00Z',
+                        'timezone': 0,
+                        'before': 0,
+                        'after': 0,
+                        'precision': 11,
+                        'calendarmodel': 'http://www.wikidata.org/entity/Q1985727'
+                    }
+                }
+            }
+        ]}
+
+    claim = create_claim_if_not_exists(q_number, 'P1015', autid)
+    if claim:
+        set_reference(q_number, claim, reference)
 
     gender = ''
     dom = etree.fromstring(r2.text.encode('utf8'))
     gender = dom.xpath('//marc:record/marc:datafield[@tag="375"]/marc:subfield[@code="a"]/text()', namespaces=dom.nsmap)
     if len(gender) == 1:
         gender = gender[0]
-        response = None
+        claim = None
         if gender == 'male':
-            logger.info('Setting gender to: male')
-            response = create_claim_if_not_exists(q_number, 'P21', {'entity-type': 'item', 'numeric-id': 6581097})
+            claim = create_claim_if_not_exists(q_number, 'P21', {'entity-type': 'item', 'numeric-id': 6581097})
         elif gender == 'female':
-            logger.info('Setting gender to: female')
-            response = create_claim_if_not_exists(q_number, 'P21', {'entity-type': 'item', 'numeric-id': 6581072})
+            claim = create_claim_if_not_exists(q_number, 'P21', {'entity-type': 'item', 'numeric-id': 6581072})
 
-        if response:
-
-            statement = response['claim']['id']
-
-            snaks = {'P1015': [
-                {
-                    'snaktype': 'value',
-                    'property': 'P1015',
-                    'datavalue': {
-                        'type': 'wikibase-entityid',
-                        'value': {
-                            'entity-type': 'item',
-                            'numeric-id': 16889143    # BIBSYS autoritetsregister
-                        }
-                    }
-                }]}
-            set_reference(q_number, statement, snaks)
+        if claim:
+            set_reference(q_number, claim, reference)
 
 
 if login(config['user'], config['pass']):
