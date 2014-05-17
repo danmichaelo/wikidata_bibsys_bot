@@ -9,7 +9,6 @@ import unicodecsv
 import requests
 import simplejson as json
 from lxml import etree
-import hashlib
 
 config = json.load(open('config.json', 'r'))
 bs = unicodecsv.reader(codecs.open('data/2014-04-04-Bibsysmatch.csv', 'r'), delimiter=';')

@@ -2,4 +2,3 @@ requests
 unicodecsv
 lxml
 simplejson
-hashlib
